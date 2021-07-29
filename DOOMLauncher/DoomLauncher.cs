@@ -28,7 +28,7 @@ namespace DoomLauncher
 
             // Wait for the DOOM process to be re-opened
             int pId = 0;
-            SpinWait.SpinUntil(() => (pId = Memory.GetProcIdFromName(("DOOMx64vk"))) != 0);
+            SpinWait.SpinUntil(() => (pId = Memory.GetProcIdFromName("DOOMx64vk")) != 0);
 
             if (Memory.OpenProcess(pId))
             {
