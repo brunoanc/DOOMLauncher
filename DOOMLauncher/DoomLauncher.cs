@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
-using System;
+﻿using System;
+using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using Memory;
 
 namespace DoomLauncher
@@ -11,7 +10,8 @@ namespace DoomLauncher
         // Memory object for DOOM process memory handling
         private static Mem Memory = new Mem();
 
-        private static void Main(string[] args)
+        // Main entrypoint
+        private static int Main(string[] args)
         {
             // Launch doom with the passed arguments
             string launchArgs = String.Join(" ", args);
@@ -20,7 +20,7 @@ namespace DoomLauncher
             if (doom == null)
             {
                 Console.WriteLine("Failed to open the DOOM process!");
-                Environment.Exit(1);
+                return 1;
             }
 
             // Wait for the original Steam process to exit
@@ -50,12 +50,12 @@ namespace DoomLauncher
                 Memory.CloseProcess();
 
                 Console.WriteLine("DOOM process has been patched successfully.");
-                Environment.Exit(0);
+                return 0;
             }
             else
             {
                 Console.WriteLine("Failed to patch the DOOM process!");
-                Environment.Exit(1);
+                return 1;
             }
         }
     }
