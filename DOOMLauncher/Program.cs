@@ -46,9 +46,6 @@ if (doom == null)
     return 1;
 }
 
-// Wait for the original Steam process to exit
-doom.WaitForExit();
-
 // Wait for the DOOM process to be re-opened
 Process? doomProcess = null;
 
@@ -76,35 +73,55 @@ try
         throw new Exception();
     }
 
-    // Give us debug permissions
-    Process.EnterDebugMode();
+    // Get the address for the memory we will replace (old game version)
+    var oldAddress = IntPtr.Add(doomProcess.MainModule!.BaseAddress, 0x18A31D0);
 
-    // Get the address for the memory we will replace
-    var address = IntPtr.Add(doomProcess.MainModule!.BaseAddress, 0x1596A40);
-    var addressMemory = new byte[] { 0x0F, 0xB6, 0x81, 0xBB, 0x49, 0x03, 0x00 };
+    // Get the address for the memory we will replace (new game update)
+    var newAddress = IntPtr.Add(doomProcess.MainModule!.BaseAddress, 0x1596A40);
+
+    // Determine which game version we have
+    var address = IntPtr.Zero;
 
     // Wait until the memory is loaded
     SpinWait.SpinUntil(() =>
     {
-        var bytesRead = new byte[7];
-        if (!ReadProcessMemory(pHandle, address, bytesRead, (UIntPtr)bytesRead.Length, IntPtr.Zero))
+        var bytesRead = new byte[3];
+
+        if (ReadProcessMemory(pHandle, oldAddress, bytesRead, (UIntPtr)bytesRead.Length, IntPtr.Zero))
         {
-            return false;
+            // Check if the movzx instruction has been loaded into memory
+            if (bytesRead.SequenceEqual(new byte[] { 0x0F, 0xB6, 0x81 }))
+            {
+                address = oldAddress;
+                return true;
+            }
         }
 
-        return addressMemory.SequenceEqual(bytesRead);
+        if (ReadProcessMemory(pHandle, newAddress, bytesRead, (UIntPtr)bytesRead.Length, IntPtr.Zero))
+        {
+            // Check if the movzx instruction has been loaded into memory
+            if (bytesRead.SequenceEqual(new byte[] { 0x0F, 0xB6, 0x81 }))
+            {
+                address = newAddress;
+                return true;
+            }
+        }
+
+        return false;
     });
+
+    // New instruction to write (xor eax,eax)
+    var bytesToWrite = new byte[] { 0x31, 0xC0, 0x90, 0x90, 0x90, 0x90, 0x90 };
 
     // Remove write protection
     uint oldMemProt = 0x00;
-    VirtualProtectEx(pHandle, address, (IntPtr)8, (uint)0x40, out oldMemProt);
+    VirtualProtectEx(pHandle, address, (IntPtr)bytesToWrite.Length, (uint)0x40, out oldMemProt);
 
     // Apply the patch
-    var bytesToWrite = new byte[] { 0x31, 0xC0, 0x90, 0x90, 0x90, 0x90, 0x90 };
     WriteProcessMemory(pHandle, address, bytesToWrite, (UIntPtr)bytesToWrite.Length, IntPtr.Zero);
 
     // Restore write protection
-    VirtualProtectEx(pHandle, address, (IntPtr)8, oldMemProt, out _);
+    VirtualProtectEx(pHandle, address, (IntPtr)bytesToWrite.Length, oldMemProt, out _);
 
     // Close the process
     CloseHandle(pHandle);
