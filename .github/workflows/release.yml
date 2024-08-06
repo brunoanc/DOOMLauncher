@@ -21,9 +21,12 @@ jobs:
       - name: Build
         run: dotnet publish
 
+      - name: Zip
+        run: zip DOOMLauncher-${{ github.ref }}.zip DOOMLauncher/bin/Release/net8.0-windows/win-x64/publish/DOOMLauncher.exe
+
       - name: Upload release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.SECRET_TOKEN }}
-          file: '${{ github.workspace }}/DOOMLauncher/bin/Release/net8.0-windows/win-x64/publish/DOOMLauncher.exe'
+          file: ${{ github.workspace }}/DOOMLauncher-${{ github.ref }}.zip
           tag: ${{ github.ref }}
